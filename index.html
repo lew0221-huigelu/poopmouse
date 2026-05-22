@@ -2,202 +2,168 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>接屎进化版 🐭💩</title>
+<title>香蹦蹦黑洞版 🐭</title>
 <style>
-  body { margin: 0; background: #111; color: white; font-family: Arial; }
-  canvas { display: block; margin: auto; background: #222; }
+body{margin:0;background:#111;color:#fff;font-family:Arial;text-align:center;}
+canvas{background:#222;display:none;margin:auto;}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+button{padding:12px 20px;font-size:18px;border:none;border-radius:8px;background:#4caf50;color:#fff;cursor:pointer;}
 </style>
 </head>
 <body>
+<div id="ui">
+<h1>🐭 香蹦蹦黑洞版</h1>
+<button onclick="startGame()">开始游戏</button>
+<div id="endPanel" style="display:none">
+<h2 id="finalScore"></h2>
+<button onclick="restartGame()">重新开始</button>
+</div>
+</div>
+
 <canvas id="game" width="600" height="800"></canvas>
+
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const ui=document.getElementById("ui");
+const endPanel=document.getElementById("endPanel");
+const finalScore=document.getElementById("finalScore");
 
-const mouseImg = new Image();
-mouseImg.src = "mouse.png";
+const img=new Image();
+img.src="mouse.png";
 
-let mouse = { x: 260, y: 700, w: 80, h: 80 };
-let items = [];
-let effects = [];
+let mouse,items,effects,blackhole,score,speed,gameOver;
+let touchX=null;
 
-let score = 0;
-let gameOver = false;
-let speed = 2;
+function init(){
+mouse={x:260,y:700,w:80,h:80};
+items=[];effects=[];blackhole=null;
+score=0;speed=2;gameOver=false;
+}
 
-let leaderboard = JSON.parse(localStorage.getItem("poopGameRank") || "[]");
+function startGame(){
+ui.style.display="none";
+canvas.style.display="block";
+init();
+loop();
+}
 
-let left=false, right=false;
-document.addEventListener("keydown", e=>{
-  if(e.key==="ArrowLeft") left=true;
-  if(e.key==="ArrowRight") right=true;
+function restartGame(){
+endPanel.style.display="none";
+startGame();
+}
+
+// 触屏控制
+canvas.addEventListener("touchmove",e=>{
+touchX=e.touches[0].clientX-canvas.offsetLeft;
 });
-document.addEventListener("keyup", e=>{
-  if(e.key==="ArrowLeft") left=false;
-  if(e.key==="ArrowRight") right=false;
+
+// 键盘兼容
+let left=false,right=false;
+document.addEventListener("keydown",e=>{
+if(e.key==="ArrowLeft")left=true;
+if(e.key==="ArrowRight")right=true;
+});
+document.addEventListener("keyup",e=>{
+if(e.key==="ArrowLeft")left=false;
+if(e.key==="ArrowRight")right=false;
 });
 
-function spawnItem(){
-  let r=Math.random();
-  let type="poop";
-  if(r<1/10) type="gold";
-  else if(r<0.2) type="bomb";
-
-  items.push({
-    x:Math.random()*(canvas.width-40),
-    y:-40, w:40, h:40, type
-  });
+function spawn(){
+let r=Math.random(),type="poop";
+if(r<1/10)type="gold";
+else if(r<0.2)type="bomb";
+items.push({x:Math.random()*560,y:-40,w:40,h:40,type});
 }
 
 function hit(a,b){
-  return a.x < b.x + b.w &&
-         a.x + a.w > b.x &&
-         a.y < b.y + b.h &&
-         a.y + a.h > b.y;
+return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 }
 
-function fartEffect(){
-  for(let i=0;i<20;i++){
-    effects.push({
-      x:mouse.x+40,
-      y:mouse.y+60,
-      dx:(Math.random()-0.5)*6,
-      dy:-Math.random()*4,
-      life:60
-    });
-  }
+function fart(){
+for(let i=0;i<20;i++)effects.push({x:mouse.x+40,y:mouse.y+60,dx:(Math.random()-0.5)*6,dy:-Math.random()*4,life:60});
 }
 
-let blackhole=null;
-function triggerBlackhole(){
-  fartEffect();
-  blackhole={x:mouse.x+40,y:mouse.y+40,r:10,life:60};
-}
+function trigger(){fart();blackhole={x:mouse.x+40,y:mouse.y+40,r:10,life:60};}
 
 function update(){
-  if(gameOver) return;
+if(gameOver)return;
 
-  if(left) mouse.x-=6;
-  if(right) mouse.x+=6;
-  mouse.x=Math.max(0,Math.min(canvas.width-mouse.w,mouse.x));
+// 移动
+if(touchX!==null)mouse.x=touchX-40;
+if(left)mouse.x-=6;
+if(right)mouse.x+=6;
+mouse.x=Math.max(0,Math.min(520,mouse.x));
 
-  items.forEach(item=>{
-    item.y += speed;
+items.forEach(i=>{
+i.y+=speed;
+if(blackhole){
+let dx=blackhole.x-i.x;let dy=blackhole.y-i.y;
+let d=Math.sqrt(dx*dx+dy*dy);
+i.x+=dx/d*3;i.y+=dy/d*3;
+}
+});
 
-    if(blackhole){
-      let dx=blackhole.x-item.x;
-      let dy=blackhole.y-item.y;
-      let dist=Math.sqrt(dx*dx+dy*dy);
-      item.x += dx/dist*3;
-      item.y += dy/dist*3;
-    }
-  });
+for(let i=0;i<items.length;i++){
+let it=items[i];
+if(hit(mouse,it)){
+if(it.type==="bomb"){
+gameOver=true;
+finalScore.innerText="分数: "+score;
+endPanel.style.display="block";
+ui.style.display="flex";
+return;
+}
+if(it.type==="gold")trigger();
+score++;items.splice(i,1);i--;
+}
+}
 
-  for(let i=0;i<items.length;i++){
-    let it=items[i];
-    if(hit(mouse,it)){
-      if(it.type==="bomb"){
-        gameOver=true;
+items=items.filter(i=>i.y<800);
 
-        leaderboard.push(score);
-        leaderboard.sort((a,b)=>b-a);
-        leaderboard=leaderboard.slice(0,5);
-        localStorage.setItem("poopGameRank",JSON.stringify(leaderboard));
-        return;
-      }
+// 粒子
+ effects=effects.filter(e=>{
+e.x+=e.dx;e.y+=e.dy;e.life--;return e.life>0;
+});
 
-      if(it.type==="gold"){
-        triggerBlackhole();
-      }
+if(blackhole){
+blackhole.r+=4;blackhole.life--;
+if(blackhole.life<=0){items=items.filter(i=>i.type==="bomb");blackhole=null;}
+}
 
-      score++;
-      items.splice(i,1);
-      i--;
-    }
-  }
-
-  items=items.filter(i=>i.y<canvas.height);
-
-  effects.forEach(e=>{
-    e.x+=e.dx;
-    e.y+=e.dy;
-    e.life--;
-  });
-  effects=effects.filter(e=>e.life>0);
-
-  if(blackhole){
-    blackhole.r += 4;
-    blackhole.life--;
-    if(blackhole.life<=0){
-      items = items.filter(i=>i.type==="bomb");
-      blackhole=null;
-    }
-  }
-
-  speed+=0.002;
-  if(Math.random()<0.03+score*0.0007) spawnItem();
+speed+=0.002;
+if(Math.random()<0.03+score*0.0007)spawn();
 }
 
 function draw(){
-  ctx.clearRect(0,0,600,800);
+ctx.clearRect(0,0,600,800);
 
-  if(mouseImg.complete){
-    ctx.drawImage(mouseImg,mouse.x,mouse.y,mouse.w,mouse.h);
-  }else{
-    ctx.fillRect(mouse.x,mouse.y,mouse.w,mouse.h);
-  }
+if(img.complete)ctx.drawImage(img,mouse.x,mouse.y,80,80);
 
-  ctx.font="30px Arial";
-  items.forEach(it=>{
-    if(it.type==="poop") ctx.fillText("💩",it.x,it.y);
-    if(it.type==="bomb") ctx.fillText("💣",it.x,it.y);
-    if(it.type==="gold") ctx.fillText("✨",it.x,it.y);
-  });
+ctx.font="30px Arial";
+items.forEach(i=>{
+if(i.type==="poop")ctx.fillText("💩",i.x,i.y);
+if(i.type==="bomb")ctx.fillText("💣",i.x,i.y);
+if(i.type==="gold")ctx.fillText("✨",i.x,i.y);
+});
 
-  ctx.fillStyle="rgba(0,255,0,0.5)";
-  effects.forEach(e=>{
-    ctx.beginPath();
-    ctx.arc(e.x,e.y,5,0,Math.PI*2);
-    ctx.fill();
-  });
+ctx.fillStyle="rgba(0,255,0,0.5)";
+effects.forEach(e=>{ctx.beginPath();ctx.arc(e.x,e.y,5,0,6.28);ctx.fill();});
 
-  if(blackhole){
-    let g=ctx.createRadialGradient(
-      blackhole.x,blackhole.y,10,
-      blackhole.x,blackhole.y,blackhole.r
-    );
-    g.addColorStop(0,"black");
-    g.addColorStop(1,"purple");
-    ctx.fillStyle=g;
-    ctx.beginPath();
-    ctx.arc(blackhole.x,blackhole.y,blackhole.r,0,Math.PI*2);
-    ctx.fill();
-  }
+if(blackhole){
+let g=ctx.createRadialGradient(blackhole.x,blackhole.y,10,blackhole.x,blackhole.y,blackhole.r);
+g.addColorStop(0,"black");g.addColorStop(1,"purple");
+ctx.fillStyle=g;ctx.beginPath();ctx.arc(blackhole.x,blackhole.y,blackhole.r,0,6.28);ctx.fill();
+}
 
-  ctx.fillStyle="white";
-  ctx.fillText("分数: "+score,20,40);
-
-  if(gameOver){
-    ctx.fillStyle="red";
-    ctx.font="50px Arial";
-    ctx.fillText("GAME OVER",100,300);
-
-    ctx.font="24px Arial";
-    ctx.fillText("排行榜",250,360);
-
-    leaderboard.forEach((s,i)=>{
-      ctx.fillText((i+1)+". "+s,260,400+i*30);
-    });
-  }
+ctx.fillStyle="#fff";
+ctx.fillText("分数: "+score,20,40);
 }
 
 function loop(){
-  update();
-  draw();
-  requestAnimationFrame(loop);
+update();draw();
+if(!gameOver)requestAnimationFrame(loop);
 }
-
-loop();
 </script>
 </body>
 </html>
