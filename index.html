@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>香蹦蹦黑洞版 🐭</title>
+<title>香蹦蹦xbb 🐭</title>
 <style>
 body{margin:0;background:#111;color:#fff;font-family:Arial;text-align:center;}
 canvas{background:#222;display:none;margin:auto;}
@@ -12,11 +12,11 @@ button{padding:12px 20px;font-size:18px;border:none;border-radius:8px;background
 </head>
 <body>
 <div id="ui">
-<h1>🐭 香蹦蹦黑洞版</h1>
-<button onclick="startGame()">开始游戏</button>
+<h1>🐭 香蹦蹦xbb /h1>
+<button onclick="startGame()">Start</button>
 <div id="endPanel" style="display:none">
 <h2 id="finalScore"></h2>
-<button onclick="restartGame()">重新开始</button>
+<button onclick="restartGame()">Restart</button>
 </div>
 </div>
 
@@ -53,12 +53,10 @@ endPanel.style.display="none";
 startGame();
 }
 
-// 触屏控制
 canvas.addEventListener("touchmove",e=>{
 touchX=e.touches[0].clientX-canvas.offsetLeft;
 });
 
-// 键盘兼容
 let left=false,right=false;
 document.addEventListener("keydown",e=>{
 if(e.key==="ArrowLeft")left=true;
@@ -71,7 +69,7 @@ if(e.key==="ArrowRight")right=false;
 
 function spawn(){
 let r=Math.random(),type="poop";
-if(r<1/10)type="gold";
+if(r<1/12)type="gold";
 else if(r<0.2)type="bomb";
 items.push({x:Math.random()*560,y:-40,w:40,h:40,type});
 }
@@ -89,7 +87,6 @@ function trigger(){fart();blackhole={x:mouse.x+40,y:mouse.y+40,r:10,life:60};}
 function update(){
 if(gameOver)return;
 
-// 移动
 if(touchX!==null)mouse.x=touchX-40;
 if(left)mouse.x-=6;
 if(right)mouse.x+=6;
@@ -97,7 +94,9 @@ mouse.x=Math.max(0,Math.min(520,mouse.x));
 
 items.forEach(i=>{
 i.y+=speed;
-if(blackhole){
+
+// ✅ 只吸屎（不吸炸弹）
+if(blackhole && i.type!=="bomb"){
 let dx=blackhole.x-i.x;let dy=blackhole.y-i.y;
 let d=Math.sqrt(dx*dx+dy*dy);
 i.x+=dx/d*3;i.y+=dy/d*3;
@@ -121,14 +120,18 @@ score++;items.splice(i,1);i--;
 
 items=items.filter(i=>i.y<800);
 
-// 粒子
  effects=effects.filter(e=>{
 e.x+=e.dx;e.y+=e.dy;e.life--;return e.life>0;
 });
 
 if(blackhole){
 blackhole.r+=4;blackhole.life--;
-if(blackhole.life<=0){items=items.filter(i=>i.type==="bomb");blackhole=null;}
+
+// ✅ 结束时：清除所有炸弹 + 所有屎
+if(blackhole.life<=0){
+items=[]; // 全清（包含炸弹✅）
+blackhole=null;
+}
 }
 
 speed+=0.002;
