@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>接屎进化版 🐭💩</title>
+<style>
+  body { margin: 0; background: #111; color: white; font-family: Arial; }
+  canvas { display: block; margin: auto; background: #222; }
+</style>
+</head>
+<body>
+<canvas id="game" width="600" height="800"></canvas>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const mouseImg = new Image();
+mouseImg.src = "mouse.png";
+
+let mouse = { x: 260, y: 700, w: 80, h: 80 };
+let items = [];
+let effects = [];
+
+let score = 0;
+let gameOver = false;
+let speed = 2;
+
+let leaderboard = JSON.parse(localStorage.getItem("poopGameRank") || "[]");
+
+let left=false, right=false;
+document.addEventListener("keydown", e=>{
+  if(e.key==="ArrowLeft") left=true;
+  if(e.key==="ArrowRight") right=true;
+});
+document.addEventListener("keyup", e=>{
+  if(e.key==="ArrowLeft") left=false;
+  if(e.key==="ArrowRight") right=false;
+});
+
+function spawnItem(){
+  let r=Math.random();
+  let type="poop";
+  if(r<1/30) type="gold";
+  else if(r<0.2) type="bomb";
+
+  items.push({
+    x:Math.random()*(canvas.width-40),
+    y:-40, w:40, h:40, type
+  });
+}
+
+function hit(a,b){
+  return a.x < b.x + b.w &&
+         a.x + a.w > b.x &&
+         a.y < b.y + b.h &&
+         a.y + a.h > b.y;
+}
+
+function fartEffect(){
+  for(let i=0;i<20;i++){
+    effects.push({
+      x:mouse.x+40,
+      y:mouse.y+60,
+      dx:(Math.random()-0.5)*6,
+      dy:-Math.random()*4,
+      life:60
+    });
+  }
+}
+
+let blackhole=null;
+function triggerBlackhole(){
+  fartEffect();
+  blackhole={x:mouse.x+40,y:mouse.y+40,r:10,life:60};
+}
+
+function update(){
+  if(gameOver) return;
+
+  if(left) mouse.x-=6;
+  if(right) mouse.x+=6;
+  mouse.x=Math.max(0,Math.min(canvas.width-mouse.w,mouse.x));
+
+  items.forEach(item=>{
+    item.y += speed;
+
+    if(blackhole){
+      let dx=blackhole.x-item.x;
+      let dy=blackhole.y-item.y;
+      let dist=Math.sqrt(dx*dx+dy*dy);
+      item.x += dx/dist*3;
+      item.y += dy/dist*3;
+    }
+  });
+
+  for(let i=0;i<items.length;i++){
+    let it=items[i];
+    if(hit(mouse,it)){
+      if(it.type==="bomb"){
+        gameOver=true;
+
+        leaderboard.push(score);
+        leaderboard.sort((a,b)=>b-a);
+        leaderboard=leaderboard.slice(0,5);
+        localStorage.setItem("poopGameRank",JSON.stringify(leaderboard));
+        return;
+      }
+
+      if(it.type==="gold"){
+        triggerBlackhole();
+      }
+
+      score++;
+      items.splice(i,1);
+      i--;
+    }
+  }
+
+  items=items.filter(i=>i.y<canvas.height);
+
+  effects.forEach(e=>{
+    e.x+=e.dx;
+    e.y+=e.dy;
+    e.life--;
+  });
+  effects=effects.filter(e=>e.life>0);
+
+  if(blackhole){
+    blackhole.r += 4;
+    blackhole.life--;
+    if(blackhole.life<=0){
+      items = items.filter(i=>i.type==="bomb");
+      blackhole=null;
+    }
+  }
+
+  speed+=0.002;
+  if(Math.random()<0.03+score*0.0007) spawnItem();
+}
+
+function draw(){
+  ctx.clearRect(0,0,600,800);
+
+  if(mouseImg.complete){
+    ctx.drawImage(mouseImg,mouse.x,mouse.y,mouse.w,mouse.h);
+  }else{
+    ctx.fillRect(mouse.x,mouse.y,mouse.w,mouse.h);
+  }
+
+  ctx.font="30px Arial";
+  items.forEach(it=>{
+    if(it.type==="poop") ctx.fillText("💩",it.x,it.y);
+    if(it.type==="bomb") ctx.fillText("💣",it.x,it.y);
+    if(it.type==="gold") ctx.fillText("✨",it.x,it.y);
+  });
+
+  ctx.fillStyle="rgba(0,255,0,0.5)";
+  effects.forEach(e=>{
+    ctx.beginPath();
+    ctx.arc(e.x,e.y,5,0,Math.PI*2);
+    ctx.fill();
+  });
+
+  if(blackhole){
+    let g=ctx.createRadialGradient(
+      blackhole.x,blackhole.y,10,
+      blackhole.x,blackhole.y,blackhole.r
+    );
+    g.addColorStop(0,"black");
+    g.addColorStop(1,"purple");
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.arc(blackhole.x,blackhole.y,blackhole.r,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle="white";
+  ctx.fillText("分数: "+score,20,40);
+
+  if(gameOver){
+    ctx.fillStyle="red";
+    ctx.font="50px Arial";
+    ctx.fillText("GAME OVER",100,300);
+
+    ctx.font="24px Arial";
+    ctx.fillText("排行榜",250,360);
+
+    leaderboard.forEach((s,i)=>{
+      ctx.fillText((i+1)+". "+s,260,400+i*30);
+    });
+  }
+}
+
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
